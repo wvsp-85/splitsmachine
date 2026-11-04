@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Splitsmachine</title>
+<style>
+  * { box-sizing: border-box; }
+  :root { --bg:#eef6ff; --text:#223; --panel:#fff; --accent:#4a90e2; --top:#ffe27a; --left:#9be39b; --right:#ff9b9b; --line:#333; }
+  body[data-theme="sint"] { --bg:#fff4d6; --text:#5a1414; --accent:#c8102e; --top:#ffd54a; --left:#ffffff; --right:#f4b6bd; --line:#8a1c1c; }
+  body[data-theme="kerstman"] { --bg:#e6f4ea; --text:#12351f; --accent:#c62828; --top:#ffffff; --left:#a5d6a7; --right:#ef9a9a; --line:#1b5e20; }
+  body { font-family: "Comic Sans MS", "Segoe UI", sans-serif; background:var(--bg); margin:0; padding:20px; text-align:center; color:var(--text); transition:background .3s; }
+  h1 { margin:0 0 10px; }
+  .panel { background:var(--panel); border-radius:16px; padding:16px; max-width:720px; margin:0 auto 16px; box-shadow:0 2px 8px #0002; }
+  label { display:inline-block; margin:8px 14px; font-size:18px; }
+  input[type=number] { width:70px; font-size:20px; padding:4px; text-align:center; }
+  select, button { font-size:18px; padding:6px 12px; border-radius:8px;   border:2px solid var(--accent); background:#fff; cursor:pointer; }
+    button.primary { background:var(--accent); color:#fff; }
+    .deco { font-size:34px; letter-spacing:8px; margin-bottom:4px; }
+  .machine { display:flex; flex-direction:column; align-items:center; gap:0; margin-top:10px; }
+  .circle { width:110px; height:110px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:48px; font-weight:bold;   border:5px solid var(--line); background:#fff; color:#222; }
+    .circle.top { background:var(--top); }
+    .circle.left { background:var(--left); }
+    .circle.right { background:var(--right); }
+  .circle input { width:80px; height:80px; font-size:40px; border:none; text-align:center; background:transparent; font-weight:bold; }
+  .circle input:focus { outline:3px solid #4a90e2; border-radius:50%; }
+  .circle.ok { background:#7be27b; }
+  .circle.bad { background:#ff6b6b; }
+  .legs { display:flex; gap:60px; margin-top:-8px; }
+  svg { display:block; }
+  #msg { font-size:22px; min-height:32px; margin-top:12px; font-weight:bold; }
+  #score { font-size:18px; margin-top:6px; }
+  .circle { isolation:isolate; position:relative; }
+  /* Kerstman: kerstballen */
+  body[data-theme="kerstman"] .circle { box-shadow:inset -10px -12px 20px #0003, 0 6px 0 #0003; border-width:4px; }
+  body[data-theme="kerstman"] .circle::before { content:""; position:absolute; top:-16px; left:50%; width:30px; height:18px; margin-left:-15px; background:linear-gradient(#ffd54a,#c9a227); border:3px solid #8d6e0f; border-radius:6px 6px 2px 2px; z-index:-1; }
+  body[data-theme="kerstman"] .circle::after { content:""; position:absolute; top:12px; left:18px; width:26px; height:14px; background:#fff9; border-radius:50%; transform:rotate(-35deg); pointer-events:none; }
+  body[data-theme="kerstman"] .circle.top { background:radial-gradient(circle at 35% 30%,#fff,#ffd54a 70%); }
+  body[data-theme="kerstman"] .circle.left { background:radial-gradient(circle at 35% 30%,#e8ffe8,#43a047 80%); }
+  body[data-theme="kerstman"] .circle.right { background:radial-gradient(circle at 35% 30%,#ffe8e8,#e53935 80%); }
+  /* Sint: pakjes */
+  body[data-theme="sint"] .circle { border-radius:18px; border-width:4px; }
+  body[data-theme="sint"] .circle::before { content:"🎀"; position:absolute; top:-30px; left:50%; transform:translateX(-50%); font-size:36px; z-index:2; }
+  body[data-theme="sint"] .circle.top { background-image:linear-gradient(90deg,transparent 40%,#c8102e66 40% 60%,transparent 60%),linear-gradient(transparent 40%,#c8102e66 40% 60%,transparent 60%); }
+  body[data-theme="sint"] .circle.left { background-image:linear-gradient(90deg,transparent 40%,#1e88e599 40% 60%,transparent 60%),linear-gradient(transparent 40%,#1e88e599 40% 60%,transparent 60%); background-color:#fff59d; }
+  body[data-theme="sint"] .circle.right { background-image:linear-gradient(90deg,transparent 40%,#8e24aa88 40% 60%,transparent 60%),linear-gradient(transparent 40%,#8e24aa88 40% 60%,transparent 60%); background-color:#ffcc80; }
+  .scene { position:fixed; inset:0; z-index:0; pointer-events:none; display:none; overflow:hidden; }
+  .scene svg { position:absolute; bottom:0; left:0; width:100%; height:auto; }
+  .cloud { position:absolute; font-size:90px; opacity:.35; filter:brightness(.55) saturate(.6); animation:drift 90s linear infinite; }
+  @keyframes drift { from { transform:translateX(-20vw); } to { transform:translateX(120vw); } }
+  #sceneSint .star { filter:drop-shadow(0 0 6px #fff7b0); }
+  body[data-theme="sint"] #sceneSint, body[data-theme="kerstman"] #sceneKerst { display:block; }
+  .rider { position:absolute; font-size:64px; white-space:nowrap; animation:ride 28s linear infinite; }
+  @keyframes ride { from { left:-15%; } to { left:110%; } }
+  #sceneSint .rider { bottom:calc(45vh - 20px); }
+  #sceneKerst .rider { top:8vh; animation-duration:22s; }
+  .star { position:absolute; font-size:26px; animation:twinkle 2s ease-in-out infinite; }
+  @keyframes twinkle { 50% { opacity:.3; transform:scale(.7); } }
+  .legs { margin-top:12px; }
+  #new { margin:8px 14px; }
+  body[data-theme] .circle.ok { background-color:#7be27b; }
+  body[data-theme] .circle.bad { background-color:#ff6b6b; }
+  body[data-theme="kerstman"] .circle.ok { background:#7be27b; }
+  body[data-theme="kerstman"] .circle.bad { background:#ff6b6b; }
+  .hidden { display:none; }
+  body { background:var(--grad, var(--bg)) fixed; min-height:100vh; overflow-x:hidden; }
+  body[data-theme="standaard"] { --grad:linear-gradient(135deg,#ffd6e8,#d6ecff 40%,#fff6bf 70%,#d9ffd6); }
+  body[data-theme="sint"] { --grad:radial-gradient(circle at 12% 12%,#fff6c933 0,transparent 14%),linear-gradient(180deg,#070b26,#141a4a 55%,#2d2360); }
+  body[data-theme="kerstman"] { --grad:radial-gradient(circle,#ffffff55 2px,transparent 3px) 0 0/60px 60px,linear-gradient(180deg,#07123a,#0d2a6b 60%,#1a4a8c); }
+  body[data-theme="sint"] h1, body[data-theme="kerstman"] h1 { color:#fff; text-shadow:3px 3px 0 #7f0000; }
+  body[data-theme="sint"] h1 { text-shadow:3px 3px 0 #0b1030; }
+  body[data-theme="kerstman"] h1 { text-shadow:3px 3px 0 #07123a; }
+  body[data-theme="sint"] .deco, body[data-theme="kerstman"] .deco { filter:drop-shadow(0 2px 2px #0006); }
+  body[data-theme="sint"] .panel { background:#fffaf0; border-color:#ffd54a; }
+  body[data-theme="kerstman"] .panel { background:#fffafa; border-color:#2e7d32; }
+  h1 { font-size:2.4rem; color:var(--accent); text-shadow:3px 3px 0 #fff, 5px 5px 0 #0002; }
+  .panel { border:4px solid var(--accent); border-radius:24px; position:relative; z-index:1; }
+  button, select { transition:transform .15s; font-weight:bold; }
+  button:hover { transform:scale(1.08) rotate(-2deg); }
+  button#check { font-size:22px; padding:10px 28px; background:#ffb300; border-color:#e65100; color:#fff; margin-top:10px; }
+  .circle { box-shadow:0 6px 0 #0003; animation:pop .5s ease both; }
+  .circle.left { animation-delay:.1s; } .circle.right { animation-delay:.2s; }
+  .circle.ok { animation:jump .6s ease; }
+  .circle.bad { animation:shake .4s ease; }
+  @keyframes pop { from { transform:scale(0) rotate(-90deg); } to { transform:scale(1); } }
+  @keyframes jump { 0%,100% { transform:translateY(0); } 40% { transform:translateY(-30px) scale(1.2); } }
+  @keyframes shake { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-10px); } 75% { transform:translateX(10px); } }
+  .deco { animation:wiggle 2s ease-in-out infinite; }
+  @keyframes wiggle { 0%,100% { transform:rotate(-3deg); } 50% { transform:rotate(3deg); } }
+  #msg { color:var(--accent); font-size:26px; }
+  .fall { position:fixed; top:-50px; z-index:0; pointer-events:none; animation:fall linear forwards; }
+  .confetti { position:fixed; z-index:5; pointer-events:none; font-size:32px; animation:burst 1.2s ease-out forwards; }
+  @keyframes fall { to { transform:translateY(110vh) rotate(360deg); } }
+  @keyframes burst { to { transform:translate(var(--dx),var(--dy)) rotate(540deg); opacity:0; } }
+  table { margin:0 auto; border-collapse:collapse; }
+  td { border:1px solid #ccc; padding:4px 14px; font-size:20px; }
+</style>
+</head>
+<body>
+<div class="scene" id="sceneSint">
+  <span class="star" style="left:6%;top:8%">🌙</span><span class="star" style="left:28%;top:5%">⭐</span><span class="star" style="left:62%;top:9%">⭐</span><span class="star" style="left:88%;top:6%">✨</span><span class="star" style="left:45%;top:14%">✨</span>
+  <span class="cloud" style="left:0;top:20%;animation-delay:-10s">☁️</span><span class="cloud" style="left:0;top:38%;animation-delay:-45s;font-size:120px">☁️</span><span class="cloud" style="left:0;top:8%;animation-delay:-70s;font-size:70px">☁️</span><span class="cloud" style="left:0;top:50%;animation-delay:-25s;font-size:80px">☁️</span>
+  <svg viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice">
+    <defs>
+      <g id="gevel">
+        <polygon points="0,150 0,130 20,130 20,112 40,112 40,96 70,96 70,112 90,112 90,130 110,130 110,150 110,262 0,262" stroke="#3b0a0a" stroke-width="3"/>
+        <g fill="#fff8e1" stroke="#3b0a0a" stroke-width="2"><rect x="14" y="160" width="26" height="38"/><rect x="70" y="160" width="26" height="38"/><rect x="14" y="212" width="26" height="38"/><rect x="70" y="212" width="26" height="38"/><rect x="42" y="100" width="26" height="26"/></g>
+        <g fill="#ffd54a" style="filter:drop-shadow(0 0 7px #ffc83a) drop-shadow(0 0 14px #ff9f1a)"><rect x="17" y="163" width="20" height="32"/><rect x="73" y="163" width="20" height="32"/><rect x="17" y="215" width="20" height="32"/><rect x="73" y="215" width="20" height="32"/><rect x="45" y="103" width="20" height="20"/></g>
+        <g stroke="#3b0a0a" stroke-width="2"><line x1="27" y1="163" x2="27" y2="195"/><line x1="83" y1="163" x2="83" y2="195"/><line x1="27" y1="215" x2="27" y2="247"/><line x1="83" y1="215" x2="83" y2="247"/></g>
+      </g>
+    </defs>
+    <path d="M0 180 Q200 130 400 170 T800 160 T1200 170 V300 H0Z" fill="#0d1238"/>
+    <use href="#gevel" x="10" y="30" fill="#5c2a24"/>
+    <use href="#gevel" x="125" y="10" fill="#6e5238"/>
+    <use href="#gevel" x="240" y="35" fill="#4a1f2a"/>
+    <use href="#gevel" x="355" y="15" fill="#5e4030"/>
+    <use href="#gevel" x="470" y="25" fill="#5e4030"/>
+    <use href="#gevel" x="585" y="40" fill="#5c2a24"/>
+    <use href="#gevel" x="700" y="15" fill="#6e5238"/>
+    <use href="#gevel" x="815" y="35" fill="#4a1f2a"/>
+    <g>
+      <rect x="945" y="150" width="255" height="112" fill="#4d2430" stroke="#3b0a0a" stroke-width="3"/>
+      <rect x="935" y="140" width="275" height="14" fill="#5d1a12" stroke="#3b0a0a" stroke-width="3"/>
+      <g fill="#fff8e1" stroke="#3b0a0a" stroke-width="2"><rect x="965" y="175" width="30" height="40"/><rect x="1030" y="175" width="30" height="40"/><rect x="1095" y="175" width="30" height="40"/><rect x="1155" y="175" width="30" height="40"/></g>
+      <g fill="#ffd54a" style="filter:drop-shadow(0 0 7px #ffc83a) drop-shadow(0 0 14px #ff9f1a)"><rect x="968" y="178" width="24" height="34"/><rect x="1033" y="178" width="24" height="34"/><rect x="1098" y="178" width="24" height="34"/><rect x="1158" y="178" width="24" height="34"/></g>
+    </g>
+    <g transform="translate(975,140) scale(.85)">
+      <path d="M8,-62 Q-18,-50 -14,-22" stroke="#e0e0e0" stroke-width="9" fill="none" stroke-linecap="round"/>
+      <g fill="#fff" stroke="#888" stroke-width="2"><rect x="12" y="-36" width="9" height="36"/><rect x="28" y="-36" width="9" height="36"/><rect x="66" y="-36" width="9" height="36"/><rect x="82" y="-36" width="9" height="36"/></g>
+      <g fill="#333"><rect x="12" y="-5" width="9" height="5"/><rect x="28" y="-5" width="9" height="5"/><rect x="66" y="-5" width="9" height="5"/><rect x="82" y="-5" width="9" height="5"/></g>
+      <ellipse cx="50" cy="-52" rx="46" ry="22" fill="#fff" stroke="#888" stroke-width="2"/>
+      <polygon points="80,-68 100,-102 116,-92 98,-56" fill="#fff" stroke="#888" stroke-width="2"/>
+      <ellipse cx="118" cy="-92" rx="17" ry="10" transform="rotate(28 118 -92)" fill="#fff" stroke="#888" stroke-width="2"/>
+      <circle cx="122" cy="-98" r="2.5" fill="#222"/><circle cx="130" cy="-86" r="2" fill="#bbb"/>
+      <path d="M82,-70 Q92,-98 102,-102" stroke="#d0d0d0" stroke-width="6" fill="none"/>
+      <rect x="34" y="-70" width="30" height="22" rx="4" fill="#c8102e" stroke="#ffd54a" stroke-width="3"/>
+      <path d="M40,-112 Q10,-90 28,-66 L42,-72Z" fill="#a50d25"/>
+      <rect x="40" y="-122" width="30" height="54" rx="8" fill="#c8102e"/>
+      <ellipse cx="56" cy="-126" rx="11" ry="14" fill="#fff"/>
+      <circle cx="56" cy="-136" r="10" fill="#ffd9b3"/>
+      <circle cx="52" cy="-138" r="1.8" fill="#222"/><circle cx="60" cy="-138" r="1.8" fill="#222"/>
+      <polygon points="43,-142 56,-182 69,-142" fill="#c8102e" stroke="#ffd54a" stroke-width="3"/>
+      <rect x="54" y="-174" width="4" height="16" fill="#ffd54a"/><rect x="49" y="-168" width="14" height="4" fill="#ffd54a"/>
+      <line x1="66" y1="-108" x2="82" y2="-116" stroke="#c8102e" stroke-width="8" stroke-linecap="round"/>
+      <line x1="84" y1="-128" x2="88" y2="-40" stroke="#ffd54a" stroke-width="4"/>
+      <path d="M84,-128 q-14,-14 -2,-24 q12,2 8,14" stroke="#ffd54a" stroke-width="4" fill="none"/>
+    </g>
+    <g fill="#8d2b1f" stroke="#3b0a0a" stroke-width="3"><rect x="150" y="60" width="22" height="30"/><rect x="835" y="60" width="22" height="30"/></g>
+        <text x="144" y="58" font-size="30">🎁</text><text x="829" y="58" font-size="30">🎁</text>
+    <rect y="262" width="1200" height="38" fill="#1a237e"/>
+    <g stroke="#5c6bc0" stroke-width="3" fill="none"><path d="M0 275 q30 -8 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0"/><path d="M20 292 q30 -8 60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0 t60 0"/></g>
+    <g transform="translate(60,236)">
+      <polygon points="0,10 120,10 105,38 15,38" fill="#fff" stroke="#333" stroke-width="3"/>
+      <rect x="0" y="22" width="120" height="8" fill="#c8102e"/>
+      <rect x="25" y="-10" width="60" height="20" fill="#ffd54a" stroke="#333" stroke-width="3"/>
+      <rect x="40" y="-30" width="16" height="22" fill="#c8102e" stroke="#333" stroke-width="3"/>
+      <rect x="40" y="-34" width="16" height="6" fill="#222"/>
+      <circle cx="46" cy="-46" r="9" fill="#fff" opacity=".8"/><circle cx="58" cy="-60" r="12" fill="#fff" opacity=".6"/>
+      <line x1="90" y1="-10" x2="90" y2="-40" stroke="#333" stroke-width="3"/><polygon points="90,-40 112,-33 90,-26" fill="#c8102e"/>
+    </g>
+  </svg>
+</div>
+<div class="scene" id="sceneKerst">
+  <span class="star" style="left:12%;top:8%">❄️</span><span class="star" style="left:45%;top:4%">❄️</span><span class="star" style="left:80%;top:10%">❄️</span>
+  <svg viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice">
+    <defs>
+      <g id="tree"><rect x="123" y="230" width="14" height="24" fill="#5d4037"/><polygon points="85,232 130,150 175,232" fill="#1b5e20"/><polygon points="95,190 130,110 165,190" fill="#2e7d32"/><polygon points="106,150 130,80 154,150" fill="#388e3c"/>
+        <path d="M106,150 L112,140 L120,150 L128,138 L136,150 L144,140 L150,150 L154,150 L130,80Z" fill="#fff" opacity=".85"/><path d="M95,190 L104,178 L114,190 L124,176 L136,190 L146,176 L156,190 L165,190 L130,110Z" fill="#fff" opacity=".7"/>
+        <circle cx="120" cy="170" r="4" fill="#ff5252"/><circle cx="142" cy="200" r="4" fill="#ffd54a"/><circle cx="110" cy="215" r="4" fill="#40c4ff"/></g>
+      <g id="pine"><polygon points="0,60 14,10 28,60" fill="#1f4d2b"/><polygon points="3,40 14,0 25,40" fill="#2a6a3a"/></g>
+    </defs>
+    <polygon points="0,200 120,90 200,150 300,60 420,170 520,100 640,180 760,70 880,160 1000,85 1120,150 1200,110 1200,300 0,300" fill="#9fb8d4"/>
+    <g fill="#fff"><polygon points="300,60 270,95 290,88 300,100 312,86 330,96"/><polygon points="760,70 730,106 748,98 762,110 776,96 794,104"/><polygon points="1000,85 975,115 990,108 1002,118 1015,106 1030,114"/><polygon points="120,90 98,116 112,110 122,120 134,108 144,116"/></g>
+    <path d="M0 230 Q200 150 420 215 T850 200 T1200 190 V300 H0Z" fill="#e8f1f8"/>
+    <g><use href="#pine" x="20" y="185"/><use href="#pine" x="55" y="195"/><use href="#pine" x="440" y="190"/><use href="#pine" x="475" y="198"/><use href="#pine" x="500" y="188"/><use href="#pine" x="700" y="180"/><use href="#pine" x="735" y="190"/></g>
+    <path d="M0 270 Q300 210 600 260 T1200 250 V300 H0Z" fill="#fff"/>
+    <use href="#tree" x="-40" y="30" transform="scale(.8)"/>
+    <use href="#tree" x="170" y="40" transform="scale(.7)"/>
+    <g transform="translate(10,200)">
+      <rect x="0" y="30" width="110" height="70" fill="#a1473a" stroke="#5d2a22" stroke-width="3"/>
+      <polygon points="-10,30 55,-15 120,30" fill="#fff" stroke="#cfd8dc" stroke-width="3"/>
+      <rect x="82" y="-8" width="16" height="28" fill="#6d4c41" stroke="#3e2723" stroke-width="2"/><rect x="80" y="-12" width="20" height="6" fill="#fff"/>
+      <circle cx="92" cy="-28" r="7" fill="#fff" opacity=".8"/><circle cx="100" cy="-44" r="9" fill="#fff" opacity=".6"/>
+      <rect x="45" y="55" width="22" height="45" fill="#5d4037"/><circle cx="62" cy="80" r="2" fill="#ffd54a"/>
+      <rect x="10" y="48" width="24" height="24" fill="#ffd54a" stroke="#fff" stroke-width="3"/><line x1="22" y1="48" x2="22" y2="72" stroke="#fff" stroke-width="2"/>
+      <rect x="78" y="48" width="24" height="24" fill="#ffd54a" stroke="#fff" stroke-width="3"/>
+      <path d="M45,38 q10,12 20,0 q-10,-2 -20,0" fill="#2e7d32"/><circle cx="55" cy="44" r="3" fill="#e53935"/>
+    </g>
+    <g transform="translate(128,215)"><rect x="0" y="0" width="5" height="50" fill="#37474f"/><rect x="-6" y="-8" width="17" height="12" fill="#ffd54a"/><circle cx="2" cy="-2" r="26" fill="#ffd54a" opacity=".25"/></g>
+    <g transform="translate(195,190)"><circle cx="0" cy="55" r="32" fill="#fff" stroke="#cfd8dc" stroke-width="3"/><circle cx="0" cy="12" r="22" fill="#fff" stroke="#cfd8dc" stroke-width="3"/><circle cx="-7" cy="8" r="3" fill="#222"/><circle cx="7" cy="8" r="3" fill="#222"/><polygon points="0,13 18,17 0,20" fill="#ff7043"/><rect x="-18" y="-14" width="36" height="8" fill="#c62828"/><rect x="-12" y="-30" width="24" height="18" fill="#c62828"/>
+      <path d="M-20,28 q20,14 40,0" stroke="#43a047" stroke-width="7" fill="none"/><rect x="14" y="28" width="9" height="24" fill="#43a047"/>
+      <circle cx="0" cy="45" r="3" fill="#222"/><circle cx="0" cy="58" r="3" fill="#222"/><circle cx="0" cy="71" r="3" fill="#222"/>
+      <line x1="-30" y1="45" x2="-62" y2="25" stroke="#5d4037" stroke-width="4"/><line x1="30" y1="45" x2="62" y2="25" stroke="#5d4037" stroke-width="4"/></g>
+    <g stroke="#8d6e63" stroke-width="4"><line x1="620" y1="255" x2="760" y2="255"/><line x1="620" y1="268" x2="760" y2="268"/><line x1="630" y1="248" x2="630" y2="282"/><line x1="680" y1="248" x2="680" y2="282"/><line x1="730" y1="248" x2="730" y2="282"/><line x1="755" y1="248" x2="755" y2="282"/></g>
+    <g transform="translate(900,10) scale(1.5)"><use href="#tree"/>
+      <polygon points="130,64 134,76 147,76 137,84 141,96 130,88 119,96 123,84 113,76 126,76" fill="#ffd54a"/>
+      <path d="M100,205 q30,15 60,-5 M108,170 q22,12 46,-4" stroke="#ffd54a" stroke-width="2" fill="none"/></g>
+    <g transform="translate(985,285)">
+      <rect x="0" y="0" width="24" height="20" fill="#e53935"/><rect x="10" y="0" width="4" height="20" fill="#ffd54a"/>
+      <rect x="40" y="6" width="22" height="14" fill="#43a047"/><rect x="49" y="6" width="4" height="14" fill="#fff"/>
+      <rect x="74" y="-2" width="26" height="22" fill="#1e88e5"/><rect x="85" y="-2" width="4" height="22" fill="#ffd54a"/>
+    </g>
+    <g fill="#fff" opacity=".9"><circle cx="100" cy="120" r="3"/><circle cx="260" cy="90" r="2"/><circle cx="410" cy="60" r="3"/><circle cx="640" cy="110" r="2"/><circle cx="820" cy="40" r="3"/><circle cx="1100" cy="70" r="2"/><circle cx="1150" cy="150" r="3"/></g>
+  </svg>
+</div>
+
+<div class="deco" id="deco"></div>
+<h1 id="title">🧮 Splitsmachine</h1>
+
+<div class="panel">
+  <label>Thema:
+    <select id="theme">
+      <option value="standaard">Standaard</option>
+      <option value="sint">De Sint 🎅🏻</option>
+      <option value="kerstman">De Kerstman 🎄</option>
+    </select>
+  </label>
+  <label>Getal van <input type="number" id="min" value="2" min="2" max="100"> tot <input type="number" id="max" value="10" min="2" max="100"></label>
+  <label>Modus:
+    <select id="mode">
+      <option value="oefen">Oefenen (vul het ontbrekende getal in)</option>
+      <option value="toon">Alle splitsingen tonen</option>
+    </select>
+  </label>
+  <button class="primary" id="new">Nieuwe oefening</button>
+</div>
+
+<div class="panel" id="practice">
+  <div class="machine">
+    <div class="circle top" id="top"></div>
+    <svg width="220" height="50"><line x1="110" y1="0" x2="55" y2="50" stroke="#333" stroke-width="4"/><line x1="110" y1="0" x2="165" y2="50" stroke="#333" stroke-width="4"/></svg>
+    <div class="legs">
+      <div class="circle left" id="left"></div>
+      <div class="circle right" id="right"></div>
+    </div>
+  </div>
+  <div id="msg"></div>
+  <button id="check">Controleer</button>
+  <div id="score"></div>
+</div>
+
+<div class="panel hidden" id="showAll">
+  <h2 id="showTitle"></h2>
+  <table id="table"></table>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let total, hiddenSide, answer, correct = 0, tried = 0;
+
+function rnd(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+
+function newExercise() {
+  let lo = Math.max(2, +$('min').value || 2), hi = Math.max(lo, +$('max').value || 10);
+  if (hi > 100) hi = 100;
+  total = rnd(lo, hi);
+  const a = rnd(0, total);
+  const b = total - a;
+  hiddenSide = Math.random() < 0.5 ? 'left' : 'right';
+  const shown = hiddenSide === 'left' ? b : a;
+  answer = hiddenSide === 'left' ? a : b;
+  $('top').textContent = total;
+  for (const side of ['left', 'right']) {
+    const el = $(side);
+    el.className = 'circle ' + side;
+    if (side === hiddenSide) {
+      el.innerHTML = '<input type="number" min="0" max="' + total + '">';
+      el.firstChild.addEventListener('keydown', e => { if (e.key === 'Enter') check(); });
+    } else {
+      el.textContent = shown;
+    }
+  }
+  $('msg').textContent = '';
+  $(hiddenSide).firstChild.focus();
+}
+
+function check() {
+  const input = $(hiddenSide).querySelector('input');
+  if (!input || input.value === '') return;
+  tried++;
+  const el = $(hiddenSide);
+  if (+input.value === answer) {
+    correct++;
+    el.classList.add('ok');
+    confetti();
+    $('msg').textContent = THEMES[document.body.dataset.theme].praise;
+    setTimeout(newExercise, 1200);
+  } else {
+    el.classList.add('bad');
+    $('msg').textContent = 'Probeer nog eens!';
+    input.select();
+    setTimeout(() => el.classList.remove('bad'), 800);
+  }
+  $('score').textContent = 'Score: ' + correct + ' / ' + tried;
+}
+
+function showAll() {
+  const n = +$('max').value || 10;
+  $('showTitle').textContent = 'Splitsingen van ' + n;
+  let html = '';
+  for (let i = 0; i <= n; i++) html += '<tr><td>' + n + '</td><td>=</td><td>' + i + '</td><td>+</td><td>' + (n - i) + '</td></tr>';
+  $('table').innerHTML = html;
+}
+
+function update() {
+  const toon = $('mode').value === 'toon';
+  $('practice').classList.toggle('hidden', toon);
+  $('showAll').classList.toggle('hidden', !toon);
+  if (toon) showAll(); else newExercise();
+}
+
+const THEMES = {
+  standaard: { title: '🧮 Splitsmachine', deco: '🌈 ⭐ 🎈 ⭐ 🌈', fall: ['⭐','🎈','🌈','🦄','🧁'], praise: '🎉 Goed zo!' },
+  sint: { title: '🎁 Splitsmachine van de Sint', deco: '🐴 🎁 🍬 🎁 🐴', fall: ['🍬','🎁','🍪','⭐','🐴'], praise: '🍬 Pepernoten voor jou, goed zo!' },
+  kerstman: { title: '🎄 Splitsmachine van de Kerstman', deco: '❄️ 🎅 🎄 🎅 ❄️', fall: ['❄️','🎄','🎁','⭐','🦌'], praise: '🎅 Ho ho ho, goed gedaan!' }
+};
+let fallTimer;
+function startFalling() {
+  clearInterval(fallTimer);
+  document.querySelectorAll('.fall').forEach(e => e.remove());
+  fallTimer = setInterval(() => {
+    const list = THEMES[document.body.dataset.theme].fall;
+    const s = document.createElement('span');
+    s.className = 'fall';
+    s.textContent = list[rnd(0, list.length - 1)];
+    s.style.left = rnd(0, 95) + 'vw';
+    s.style.fontSize = rnd(20, 40) + 'px';
+    s.style.animationDuration = rnd(6, 12) + 's';
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 12500);
+  }, 600);
+}
+function confetti() {
+  const list = THEMES[document.body.dataset.theme].fall;
+  const r = $('top').getBoundingClientRect();
+  for (let i = 0; i < 16; i++) {
+    const s = document.createElement('span');
+    s.className = 'confetti';
+    s.textContent = list[i % list.length];
+    s.style.left = r.left + r.width / 2 + 'px';
+    s.style.top = r.top + r.height / 2 + 'px';
+    s.style.setProperty('--dx', rnd(-250, 250) + 'px');
+    s.style.setProperty('--dy', rnd(-250, 150) + 'px');
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 1300);
+  }
+}
+function applyTheme(name) {
+  if (!THEMES[name]) name = 'standaard';
+  document.body.dataset.theme = name;
+  startFalling();
+  $('title').textContent = THEMES[name].title;
+  $('deco').textContent = THEMES[name].deco;
+  $('theme').value = name;
+  try { localStorage.setItem('theme', name); } catch (e) {}
+}
+$('theme').onchange = () => applyTheme($('theme').value);
+let saved = 'standaard';
+try { saved = localStorage.getItem('theme') || 'standaard'; } catch (e) {}
+applyTheme(saved);
+
+$('check').onclick = check;
+$('new').onclick = update;
+$('mode').onchange = update;
+update();
+</script>
+</body>
+</html>
